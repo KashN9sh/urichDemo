@@ -9,7 +9,7 @@ from services.shared.jwt_middleware import JWTValidationMiddleware
 
 app = Application()
 app.register(DatabaseModule())
-app.starlette.add_middleware(JWTValidationMiddleware)
+app.starlette.add_middleware(JWTValidationMiddleware, public_path_prefixes=("/docs", "/openapi.json", "/rpc"))
 app.register(employees_module)
 # RPC для вызовов из Tasks (get_employee)
 app.container.register_class(EmployeesRpcHandler)

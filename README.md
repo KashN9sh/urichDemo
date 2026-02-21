@@ -27,6 +27,13 @@ uvicorn services.tasks.main:app --port 8003 --reload
 
 PostgreSQL должен быть запущен (например `docker run -p 5432:5432 -e POSTGRES_USER=urich -e POSTGRES_PASSWORD=urich -e POSTGRES_DB=urichdemo postgres:16-alpine`).
 
+## Разработка urich (без пуша в PyPI)
+
+Если правишь сам фреймворк urich и хочешь тестировать в демо:
+
+- **Docker:** urich уже подмонтирован из `../urich` и ставится как `pip install -e /urich` при старте контейнеров. Держи репозитории рядом: `…/urich` и `…/urichDemo`.
+- **Локально (venv):** перед запуском сервисов выполни `pip install -e ../urich` — дальше демо будет использовать локальный urich.
+
 ## Структура
 
 ```

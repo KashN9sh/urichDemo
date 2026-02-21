@@ -52,7 +52,7 @@ class CreateTaskHandler:
     async def __call__(self, cmd: CreateTask) -> str:
         assignee = await self._employee_service.get_employee(cmd.assignee_id)
         if not assignee:
-            raise ValueError(f"Assignee {cmd.assignee_id} not found")
+            raise ValueError(f"Assignee '{cmd.assignee_id}' not found")
         task = Task(id=cmd.task_id, title=cmd.title, assignee_id=cmd.assignee_id)
         await self._repo.add(task)
         for event in task.collect_pending_events():
@@ -74,7 +74,7 @@ class AssignTaskHandler:
     async def __call__(self, cmd: AssignTask) -> None:
         assignee = await self._employee_service.get_employee(cmd.assignee_id)
         if not assignee:
-            raise ValueError(f"Assignee {cmd.assignee_id} not found")
+            raise ValueError(f"Assignee '{cmd.assignee_id}' not found")
         task = await self._repo.get(cmd.task_id)
         if task is None:
             raise ValueError(f"Task {cmd.task_id} not found")

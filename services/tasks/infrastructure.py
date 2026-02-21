@@ -2,11 +2,16 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Optional
+import logging
+from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from sqlalchemy import select
 
+from urich.discovery.protocol import ServiceDiscovery
 from urich.domain import Repository
+from urich.rpc.protocol import RpcTransport
 
 from services.shared.database.module import SessionFactory
 
@@ -76,27 +81,23 @@ class TaskRepositoryImpl(ITaskRepository):
 class RpcEmployeeService:
     """Вызов Employees через urich RPC (Discovery + RpcTransport)."""
 
-    def __init__(
-        self,
-        discovery: "ServiceDiscovery",
-        transport: "RpcTransport",
-    ) -> None:
+    def __init__(self, discovery: ServiceDiscovery, transport: RpcTransport) -> None:
         self._discovery = discovery
         self._transport = transport
 
     async def get_employee(self, employee_id: str) -> dict | None:
         urls = self._discovery.resolve("employees")
         if not urls:
+            logger.warning("RPC employees: discovery returned no URLs")
             return None
         try:
             payload = json.dumps({"employee_id": employee_id}).encode()
             result = await self._transport.call(urls[0], "get_employee", payload)
             data = json.loads(result.decode()) if result else None
-            return data if isinstance(data, dict) and data.get("id") else None
-        except Exception:
+            if isinstance(data, dict) and data.get("id"):
+                return data
+            logger.warning("RPC get_employee(%r): unexpected response %s", employee_id, (result.decode(errors="replace")[:200] if result else None))
             return None
-
-
-if TYPE_CHECKING:
-    from urich.discovery.protocol import ServiceDiscovery
-    from urich.rpc.protocol import RpcTransport
+        except Exception as e:
+            logger.warning("RPC get_employee(%r) failed: %s", employee_id, e, exc_info=True)
+            return None

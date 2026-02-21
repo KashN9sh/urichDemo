@@ -1,4 +1,6 @@
 # Три микросервиса + PostgreSQL. Запуск: docker compose up --build
+# С volume и --reload правки кода подхватываются без пересборки.
+# urich монтируется из ../urich и ставится как -e (для разработки фреймворка без пуша в PyPI).
 # Токен: POST http://localhost:8001/auth/login → Authorize на 8002 и 8003
 
 services:
@@ -8,6 +10,10 @@ services:
       dockerfile: services/auth/Dockerfile
     ports:
       - "8001:8000"
+    volumes:
+      - .:/app
+      - ../urich:/urich
+    command: ["sh", "-c", "pip install -e /urich && uvicorn services.auth.main:app --host 0.0.0.0 --port 8000 --reload"]
     environment:
       DATABASE_URL: postgresql://urich:urich@postgres:5432/urichdemo
       JWT_SECRET: ${JWT_SECRET:-secret}
@@ -21,6 +27,10 @@ services:
       dockerfile: services/employees/Dockerfile
     ports:
       - "8002:8000"
+    volumes:
+      - .:/app
+      - ../urich:/urich
+    command: ["sh", "-c", "pip install -e /urich && uvicorn services.employees.main:app --host 0.0.0.0 --port 8000 --reload"]
     environment:
       DATABASE_URL: postgresql://urich:urich@postgres:5432/urichdemo
       JWT_SECRET: ${JWT_SECRET:-secret}
@@ -34,6 +44,10 @@ services:
       dockerfile: services/tasks/Dockerfile
     ports:
       - "8003:8000"
+    volumes:
+      - .:/app
+      - ../urich:/urich
+    command: ["sh", "-c", "pip install -e /urich && uvicorn services.tasks.main:app --host 0.0.0.0 --port 8000 --reload"]
     environment:
       DATABASE_URL: postgresql://urich:urich@postgres:5432/urichdemo
       JWT_SECRET: ${JWT_SECRET:-secret}
