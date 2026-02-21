@@ -1,6 +1,9 @@
 # Urich Demo — Сотрудники и задачи
 
-Демо-приложение на [Urich](https://github.com/KashN9sh/urich): приложение собирается из модулей. Первым регистрируется **DatabaseModule** (engine и фабрика сессий в контейнере), затем контексты **employees** и **tasks**; репозитории получают `SessionFactory` через DI.
+Демо на [Urich](https://github.com/KashN9sh/urich): приложение собирается из модулей. Код разнесён по **services/** (auth, employees, tasks, shared); тот же layout используется и для монолита, и для запуска микросервисов.
+
+- **Монолит**: один процесс, `uvicorn main:app` или `docker compose up`.
+- **Микросервисы**: три процесса (auth :8001, employees :8002, tasks :8003), см. [services/README.md](services/README.md).
 
 ## Установка и запуск
 

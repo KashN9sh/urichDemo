@@ -1,7 +1,7 @@
 """Infrastructure: сервис аутентификации (БД через SessionFactory)."""
 from sqlalchemy import select
 
-from database.module import SessionFactory
+from services.shared.database.module import SessionFactory
 
 from .models import UserModel
 from .password import hash_password, verify_password

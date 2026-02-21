@@ -1,1 +1,0 @@
-# Employees bounded context

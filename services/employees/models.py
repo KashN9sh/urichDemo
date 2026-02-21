@@ -2,7 +2,7 @@
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from database.base import Base
+from services.shared.database.base import Base
 
 
 class EmployeeModel(Base):

@@ -4,7 +4,8 @@ from sqlalchemy import select
 
 from urich.domain import Repository
 
-from database.module import SessionFactory
+from services.shared.database.module import SessionFactory
+
 from .domain import Employee
 from .models import EmployeeModel
 

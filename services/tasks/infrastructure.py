@@ -4,7 +4,8 @@ from sqlalchemy import select
 
 from urich.domain import Repository
 
-from database.module import SessionFactory
+from services.shared.database.module import SessionFactory
+
 from .domain import Task
 from .models import TaskModel
 

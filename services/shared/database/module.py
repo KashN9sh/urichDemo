@@ -11,7 +11,6 @@ from urich.core.module import Module
 
 from .base import Base
 
-# PostgreSQL async URL
 DATABASE_URL = os.environ.get(
     "DATABASE_URL",
     "postgresql+asyncpg://urich:urich@localhost:5432/urichdemo",
@@ -21,8 +20,6 @@ if DATABASE_URL.startswith("postgresql://") and "+asyncpg" not in DATABASE_URL:
 
 
 class SessionFactory:
-    """Injectable session factory: call it to get an async context manager for AsyncSession."""
-
     def __init__(self, maker: Any) -> None:
         self._maker = maker
 
@@ -35,8 +32,6 @@ _tables_lock = asyncio.Lock()
 
 
 class EnsureTablesMiddleware(BaseHTTPMiddleware):
-    """Runs create_all once on first request, using engine from app container."""
-
     def __init__(self, app: Any, app_ref: Application | None = None) -> None:
         super().__init__(app)
         self._app_ref = app_ref
@@ -47,10 +42,9 @@ class EnsureTablesMiddleware(BaseHTTPMiddleware):
             async with _tables_lock:
                 if not _tables_created:
                     engine = self._app_ref.container.resolve(AsyncEngine)
-                    # ensure models are attached to Base.metadata
-                    from auth.models import UserModel  # noqa: F401
-                    from employees.models import EmployeeModel  # noqa: F401
-                    from tasks.models import TaskModel  # noqa: F401
+                    from services.auth.models import UserModel  # noqa: F401
+                    from services.employees.models import EmployeeModel  # noqa: F401
+                    from services.tasks.models import TaskModel  # noqa: F401
 
                     async with engine.begin() as conn:
                         await conn.run_sync(Base.metadata.create_all)
@@ -59,8 +53,6 @@ class EnsureTablesMiddleware(BaseHTTPMiddleware):
 
 
 class DatabaseModule(Module):
-    """Registers engine and session factory in the container; adds middleware to create tables on first request."""
-
     def register_into(self, app: Application) -> None:
         engine = create_async_engine(
             DATABASE_URL,

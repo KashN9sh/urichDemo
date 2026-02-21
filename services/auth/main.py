@@ -1,22 +1,17 @@
 """
-Монолит: все сервисы в одном приложении.
-Запуск: uvicorn main:app --reload
-Документация: http://localhost:8000/docs
+Точка входа сервиса Auth (микросервис): только логин, регистрация, выдача JWT.
+В монолите используется через services.auth.module.AuthModule.
 """
 from urich import Application
 
 from services.auth.module import AuthModule
-from services.employees.module import employees_module
 from services.shared.database.module import DatabaseModule
-from services.tasks.module import tasks_module
 
 app = Application()
 app.register(DatabaseModule())
 app.register(AuthModule())
-app.register(employees_module)
-app.register(tasks_module)
 app.openapi(
-    title="Urich Demo — Employees & Tasks",
+    title="Auth Service",
     version="0.1.0",
     security_schemes={
         "BearerAuth": {
