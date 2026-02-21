@@ -9,14 +9,13 @@ from services.tasks.infrastructure import RpcEmployeeService
 from services.tasks.module import tasks_module
 from services.tasks.ports import IEmployeeService
 
-# Discovery из env: EMPLOYEES_SERVICE_URL -> "employees"
+# Discovery из env: EMPLOYEES_SERVICE_URL -> "employees"; RpcClient регистрируется автоматически
 discovery = static_discovery(Config.services_from_env())
 transport = JsonHttpRpcTransport(discovery, base_path="/rpc")
 
 app = Application()
 app.register(DatabaseModule())
 app.starlette.add_middleware(JWTValidationMiddleware)
-# Tasks вызывает Employees через Discovery + RPC (urich.discovery, urich.rpc)
 app.register(DiscoveryModule().adapter(discovery))
 app.register(RpcModule().client(discovery=discovery, transport=transport))
 app.container.register_class(RpcEmployeeService)

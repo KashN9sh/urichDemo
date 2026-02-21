@@ -11,10 +11,8 @@ app = Application()
 app.register(DatabaseModule())
 app.starlette.add_middleware(JWTValidationMiddleware, public_path_prefixes=("/docs", "/openapi.json", "/rpc"))
 app.register(employees_module)
-# RPC для вызовов из Tasks (get_employee)
-app.container.register_class(EmployeesRpcHandler)
-rpc_handler = app.container.resolve(EmployeesRpcHandler)
-app.register(RpcModule().server(path="/rpc", handler=rpc_handler))
+# RPC для вызовов из Tasks: handler регистрируется и резолвится из контейнера
+app.register(RpcModule().server(path="/rpc", handler=EmployeesRpcHandler))
 app.openapi(
     title="Employees Service",
     version="0.1.0",
