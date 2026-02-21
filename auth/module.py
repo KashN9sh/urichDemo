@@ -1,6 +1,6 @@
-"""Auth module: users in DB, login/register, JWT Bearer validation."""
+"""Auth module: регистрация сервиса, команд (login/register), JWT middleware."""
+import inspect
 import os
-import uuid
 from typing import Any
 
 import jwt
@@ -11,7 +11,8 @@ from starlette.responses import JSONResponse
 from urich.core.app import Application
 from urich.core.module import Module
 
-from .service import AuthService
+from .application import Login, LoginHandler, Register, RegisterHandler
+from .infrastructure import AuthService
 
 JWT_SECRET = os.environ.get("JWT_SECRET", "")
 JWT_ALGORITHM = "HS256"
@@ -34,7 +35,7 @@ def _decode_token(token: str) -> dict | None:
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
-    """Validates Bearer JWT; sets request.state.user from token payload or returns 401."""
+    """Проверяет Bearer JWT; выставляет request.state.user или возвращает 401."""
 
     async def dispatch(self, request: Request, call_next: Any) -> Any:
         request.state.user = {"id": "anonymous", "username": "anonymous", "role": "user"}
@@ -70,49 +71,47 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
 
 class AuthModule(Module):
-    """Registers AuthService, POST /auth/login and /auth/register, and JWT auth middleware."""
+    """Регистрирует AuthService, хендлеры Login/Register, маршруты и JWT middleware."""
 
     def register_into(self, app: Application) -> None:
         app.container.register_class(AuthService)
+        app.container.register_class(LoginHandler)
+        app.container.register_class(RegisterHandler)
         container = app.container
 
-        async def login(req: Request) -> Any:
+        async def login_endpoint(req: Request) -> Any:
             if not JWT_SECRET:
                 return JSONResponse(status_code=503, content={"detail": "JWT_SECRET not configured"})
             try:
                 body = await req.json()
             except Exception:
                 body = {}
-            username = body.get("username") or ""
-            password = body.get("password") or ""
-            if not username or not password:
-                return JSONResponse(status_code=400, content={"detail": "username and password required"})
-            auth_service = container.resolve(AuthService)
-            user = await auth_service.verify_user(username, password)
-            if not user:
-                return JSONResponse(status_code=401, content={"detail": "Invalid username or password"})
-            token = _create_token({"sub": user["id"], "username": user["username"], "role": user["role"]})
-            return JSONResponse({"token": token, "user": user})
+            cmd = Login(**{k: body.get(k, "") for k in ("username", "password")})
+            handler = container.resolve(LoginHandler)
+            status, data = await handler(cmd)
+            if status == 200 and "user" in data:
+                data = {**data, "token": _create_token({
+                    "sub": data["user"]["id"],
+                    "username": data["user"]["username"],
+                    "role": data["user"]["role"],
+                })}
+            return JSONResponse(status_code=status, content=data)
 
-        async def register(req: Request) -> Any:
+        async def register_endpoint(req: Request) -> Any:
             if not JWT_SECRET:
                 return JSONResponse(status_code=503, content={"detail": "JWT_SECRET not configured"})
             try:
                 body = await req.json()
             except Exception:
                 body = {}
-            username = (body.get("username") or "").strip()
-            password = body.get("password") or ""
-            role = (body.get("role") or "user").strip()
-            if not username or not password:
-                return JSONResponse(status_code=400, content={"detail": "username and password required"})
-            auth_service = container.resolve(AuthService)
-            existing = await auth_service.get_by_username(username)
-            if existing:
-                return JSONResponse(status_code=400, content={"detail": "Username already exists"})
-            user_id = str(uuid.uuid4())
-            await auth_service.create_user(user_id, username, password, role)
-            return JSONResponse(status_code=201, content={"id": user_id, "username": username, "role": role})
+            cmd = Register(
+                username=body.get("username", ""),
+                password=body.get("password", ""),
+                role=body.get("role", "user"),
+            )
+            handler = container.resolve(RegisterHandler)
+            status, data = await handler(cmd)
+            return JSONResponse(status_code=status, content=data)
 
         login_body = {
             "type": "object",
@@ -128,20 +127,10 @@ class AuthModule(Module):
                 "role": {"type": "string", "default": "user"},
             },
         }
-        app.add_route(
-            "/auth/login",
-            login,
-            methods=["POST"],
-            openapi_tags=["Auth"],
-            openapi_body_schema=login_body,
-            openapi_security=[],  # публичный эндпоинт
-        )
-        app.add_route(
-            "/auth/register",
-            register,
-            methods=["POST"],
-            openapi_tags=["Auth"],
-            openapi_body_schema=register_body,
-            openapi_security=[],  # публичный эндпоинт
-        )
+        route_kw: dict[str, Any] = {"openapi_tags": ["Auth"]}
+        if "openapi_security" in inspect.signature(app.add_route).parameters:
+            route_kw["openapi_security"] = []
+
+        app.add_route("/auth/login", login_endpoint, methods=["POST"], openapi_body_schema=login_body, **route_kw)
+        app.add_route("/auth/register", register_endpoint, methods=["POST"], openapi_body_schema=register_body, **route_kw)
         app.starlette.add_middleware(AuthMiddleware)

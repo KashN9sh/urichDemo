@@ -1,7 +1,8 @@
-"""Auth service: find user by username, verify password, create user (uses DB via SessionFactory)."""
+"""Infrastructure: сервис аутентификации (БД через SessionFactory)."""
 from sqlalchemy import select
 
 from database.module import SessionFactory
+
 from .models import UserModel
 from .password import hash_password, verify_password
 
