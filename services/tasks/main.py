@@ -1,7 +1,5 @@
 """Точка входа сервиса Tasks: команды/запросы по задачам, JWT, вызов Employees по RPC."""
-import os
-
-from urich import Application
+from urich import Application, Config
 from urich.discovery import DiscoveryModule, static_discovery
 from urich.rpc import JsonHttpRpcTransport, RpcModule
 
@@ -11,8 +9,8 @@ from services.tasks.infrastructure import RpcEmployeeService
 from services.tasks.module import tasks_module
 from services.tasks.ports import IEmployeeService
 
-employees_url = os.environ.get("EMPLOYEES_SERVICE_URL", "http://localhost:8002")
-discovery = static_discovery({"employees": employees_url})
+# Discovery из env: EMPLOYEES_SERVICE_URL -> "employees"
+discovery = static_discovery(Config.services_from_env())
 transport = JsonHttpRpcTransport(discovery, base_path="/rpc")
 
 app = Application()
