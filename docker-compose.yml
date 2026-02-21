@@ -5,6 +5,8 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql://urich:urich@postgres:5432/urichdemo
+      # Секрет для подписи JWT; если задан — включена авторизация по пользователям из БД
+      JWT_SECRET: aboba
     depends_on:
       postgres:
         condition: service_healthy

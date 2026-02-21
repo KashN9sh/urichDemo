@@ -48,6 +48,7 @@ class EnsureTablesMiddleware(BaseHTTPMiddleware):
                 if not _tables_created:
                     engine = self._app_ref.container.resolve(AsyncEngine)
                     # ensure models are attached to Base.metadata
+                    from auth.models import UserModel  # noqa: F401
                     from employees.models import EmployeeModel  # noqa: F401
                     from tasks.models import TaskModel  # noqa: F401
 

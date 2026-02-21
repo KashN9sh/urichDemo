@@ -3,7 +3,7 @@ FROM python:3.12-slim
 WORKDIR /app
 
 COPY pyproject.toml ./
-RUN pip install --no-cache-dir urich uvicorn "sqlalchemy[asyncio]>=2.0" asyncpg
+RUN pip install --no-cache-dir urich uvicorn "sqlalchemy[asyncio]>=2.0" asyncpg "pyjwt>=2.0" "bcrypt>=4.0"
 
 COPY . .
 EXPOSE 8000
