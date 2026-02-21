@@ -1,5 +1,9 @@
-"""Infrastructure: task repository (SQLAlchemy, session from DI)."""
-from typing import Optional
+"""Infrastructure: task repository и RPC-клиент к Employees (urich.discovery + urich.rpc)."""
+from __future__ import annotations
+
+import json
+from typing import TYPE_CHECKING, Optional
+
 from sqlalchemy import select
 
 from urich.domain import Repository
@@ -67,3 +71,32 @@ class TaskRepositoryImpl(ITaskRepository):
 
     def _row_to_task(self, row: TaskModel) -> Task:
         return Task.from_db(row.id, row.title, row.assignee_id, row.status)
+
+
+class RpcEmployeeService:
+    """Вызов Employees через urich RPC (Discovery + RpcTransport)."""
+
+    def __init__(
+        self,
+        discovery: "ServiceDiscovery",
+        transport: "RpcTransport",
+    ) -> None:
+        self._discovery = discovery
+        self._transport = transport
+
+    async def get_employee(self, employee_id: str) -> dict | None:
+        urls = self._discovery.resolve("employees")
+        if not urls:
+            return None
+        try:
+            payload = json.dumps({"employee_id": employee_id}).encode()
+            result = await self._transport.call(urls[0], "get_employee", payload)
+            data = json.loads(result.decode()) if result else None
+            return data if isinstance(data, dict) and data.get("id") else None
+        except Exception:
+            return None
+
+
+if TYPE_CHECKING:
+    from urich.discovery.protocol import ServiceDiscovery
+    from urich.rpc.protocol import RpcTransport

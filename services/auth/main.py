@@ -1,7 +1,4 @@
-"""
-Точка входа сервиса Auth (микросервис): только логин, регистрация, выдача JWT.
-В монолите используется через services.auth.module.AuthModule.
-"""
+"""Точка входа сервиса Auth: логин, регистрация, выдача JWT."""
 from urich import Application
 
 from services.auth.module import AuthModule

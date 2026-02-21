@@ -1,15 +1,48 @@
+# Три микросервиса + PostgreSQL. Запуск: docker compose up --build
+# Токен: POST http://localhost:8001/auth/login → Authorize на 8002 и 8003
+
 services:
-  app:
-    build: .
+  auth:
+    build:
+      context: .
+      dockerfile: services/auth/Dockerfile
     ports:
-      - "8000:8000"
+      - "8001:8000"
     environment:
       DATABASE_URL: postgresql://urich:urich@postgres:5432/urichdemo
-      # Секрет для подписи JWT; если задан — включена авторизация по пользователям из БД
-      JWT_SECRET: aboba
+      JWT_SECRET: ${JWT_SECRET:-secret}
     depends_on:
       postgres:
         condition: service_healthy
+
+  employees:
+    build:
+      context: .
+      dockerfile: services/employees/Dockerfile
+    ports:
+      - "8002:8000"
+    environment:
+      DATABASE_URL: postgresql://urich:urich@postgres:5432/urichdemo
+      JWT_SECRET: ${JWT_SECRET:-secret}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  tasks:
+    build:
+      context: .
+      dockerfile: services/tasks/Dockerfile
+    ports:
+      - "8003:8000"
+    environment:
+      DATABASE_URL: postgresql://urich:urich@postgres:5432/urichdemo
+      JWT_SECRET: ${JWT_SECRET:-secret}
+      EMPLOYEES_SERVICE_URL: http://employees:8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      employees:
+        condition: service_started
 
   postgres:
     image: postgres:16-alpine

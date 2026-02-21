@@ -1,68 +1,53 @@
-# Urich Demo — Сотрудники и задачи
+# Urich Demo — микросервисы (auth, employees, tasks)
 
-Демо на [Urich](https://github.com/KashN9sh/urich): приложение собирается из модулей. Код разнесён по **services/** (auth, employees, tasks, shared); тот же layout используется и для монолита, и для запуска микросервисов.
+Демо на [Urich](https://github.com/KashN9sh/urich): три сервиса, общая БД, обмен через **urich.discovery** и **urich.rpc**.
 
-- **Монолит**: один процесс, `uvicorn main:app` или `docker compose up`.
-- **Микросервисы**: три процесса (auth :8001, employees :8002, tasks :8003), см. [services/README.md](services/README.md).
-
-## Установка и запуск
-
-```bash
-pip install urich uvicorn
-uvicorn main:app --reload
-```
-
-Открой [http://localhost:8000/docs](http://localhost:8000/docs) — Swagger UI со всеми командами и запросами.
-
-### Docker
-
-```bash
-docker build -t urich-demo .
-docker run -p 8000:8000 urich-demo
-```
-
-### Docker Compose (приложение + PostgreSQL)
+## Запуск
 
 ```bash
 docker compose up --build
 ```
 
-- Приложение: http://localhost:8000/docs  
-- PostgreSQL: `localhost:5432`, БД `urichdemo`, пользователь `urich`, пароль `urich`.
+- **Auth:** http://localhost:8001/docs — логин, регистрация, выдача JWT  
+- **Employees:** http://localhost:8002/docs — сотрудники  
+- **Tasks:** http://localhost:8003/docs — задачи  
 
-Репозитории получают сессию из контейнера (DI). Таблицы создаются при первом запросе (middleware из DatabaseModule).
+Получить токен: **POST /auth/login** на 8001 → скопировать `token` → в Swagger на 8002 и 8003 нажать **Authorize** и вставить токен.
 
-### Авторизация
+## Локально (три терминала)
 
-Данные для авторизации хранятся в БД (таблица `users`: логин, хэш пароля, роль). Модуль **AuthModule**:
+```bash
+export JWT_SECRET=secret
+export DATABASE_URL=postgresql+asyncpg://urich:urich@localhost:5432/urichdemo
 
-- **POST /auth/register** — регистрация: тело `{"username": "...", "password": "...", "role": "user"}`. Возвращает `201` и `id` пользователя.
-- **POST /auth/login** — вход: тело `{"username": "...", "password": "..."}`. При успехе возвращает `{"token": "<jwt>", "user": {...}}`.
+uvicorn services.auth.main:app --port 8001 --reload
+uvicorn services.employees.main:app --port 8002 --reload
+uvicorn services.tasks.main:app --port 8003 --reload
+```
 
-Если задана переменная окружения **JWT_SECRET**, все запросы к API (кроме `/docs`, `/openapi.json`, `/auth/login`, `/auth/register`) должны содержать заголовок **Authorization: Bearer &lt;jwt&gt;**. Без токена или с невалидным токеном возвращается 401. Если `JWT_SECRET` не задан, проверка отключена (удобно для локальной разработки). В Swagger: кнопка **Authorize**, ввести полученный при логине JWT в поле Bearer.
+PostgreSQL должен быть запущен (например `docker run -p 5432:5432 -e POSTGRES_USER=urich -e POSTGRES_PASSWORD=urich -e POSTGRES_DB=urichdemo postgres:16-alpine`).
 
-## Контексты
+## Структура
 
-### Employees (сотрудники)
+```
+services/
+  shared/           # общее
+    database/       # БД, создание таблиц
+    jwt_middleware.py
+  auth/             # логин, регистрация, JWT
+    main.py
+  employees/        # команды/запросы по сотрудникам, RPC-сервер для Tasks
+    main.py
+  tasks/            # команды/запросы по задачам, вызов Employees по RPC
+    main.py
+```
 
-- **POST /employees/commands/create_employee** — создать сотрудника (`employee_id`, `name`, `role`)
-- **GET /employees/queries/get_employee** — получить по `employee_id`
-- **GET /employees/queries/list_employees** — список всех (опционально `search` для фильтра по имени/роли)
+Как сервисы обмениваются данными (RPC, события) — [services/COMMUNICATION.md](services/COMMUNICATION.md).
 
-### Tasks (задачи)
+## API
 
-- **POST /tasks/commands/create_task** — создать задачу (`task_id`, `title`, `assignee_id`)
-- **POST /tasks/commands/assign_task** — переназначить задачу (`task_id`, `assignee_id`)
-- **POST /tasks/commands/complete_task** — закрыть задачу (`task_id`)
-- **GET /tasks/queries/get_task** — получить задачу по `task_id`
-- **GET /tasks/queries/list_tasks_by_employee** — список задач сотрудника по `employee_id`
+- **Auth:** POST /auth/register, POST /auth/login  
+- **Employees:** POST /employees/commands/create_employee, GET /employees/queries/get_employee, GET /employees/queries/list_employees  
+- **Tasks:** POST /tasks/commands/create_task, assign_task, complete_task; GET /tasks/queries/get_task, list_tasks_by_employee  
 
-## Пример сценария
-
-1. Создать сотрудников: `create_employee` (например `emp-1`, "Иван", "developer") и `emp-2`, "Мария", "designer".
-2. Создать задачу: `create_task` (`task-1`, "Сделать API", `emp-1`).
-3. Список задач Ивана: `list_tasks_by_employee` с `employee_id=emp-1`.
-4. Переназначить задачу Марии: `assign_task` (`task-1`, `emp-2`).
-5. Закрыть задачу: `complete_task` (`task-1`).
-
-Данные хранятся в PostgreSQL (при запуске через `docker compose up` или при локальном запуске с указанием `DATABASE_URL`).
+Tasks при создании/назначении задачи проверяет, что assignee существует, через RPC к Employees (метод `get_employee`).

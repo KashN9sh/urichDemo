@@ -7,6 +7,7 @@ from urich.domain import EventBus
 
 from .domain import Task, TaskCreated, TaskAssigned, TaskCompleted
 from .infrastructure import ITaskRepository
+from .ports import IEmployeeService
 
 
 @dataclass
@@ -38,11 +39,20 @@ class ListTasksByEmployee(Query):
 
 
 class CreateTaskHandler:
-    def __init__(self, task_repository: ITaskRepository, event_bus: EventBus):
+    def __init__(
+        self,
+        task_repository: ITaskRepository,
+        event_bus: EventBus,
+        employee_service: IEmployeeService,
+    ):
         self._repo = task_repository
         self._event_bus = event_bus
+        self._employee_service = employee_service
 
     async def __call__(self, cmd: CreateTask) -> str:
+        assignee = await self._employee_service.get_employee(cmd.assignee_id)
+        if not assignee:
+            raise ValueError(f"Assignee {cmd.assignee_id} not found")
         task = Task(id=cmd.task_id, title=cmd.title, assignee_id=cmd.assignee_id)
         await self._repo.add(task)
         for event in task.collect_pending_events():
@@ -51,11 +61,20 @@ class CreateTaskHandler:
 
 
 class AssignTaskHandler:
-    def __init__(self, task_repository: ITaskRepository, event_bus: EventBus):
+    def __init__(
+        self,
+        task_repository: ITaskRepository,
+        event_bus: EventBus,
+        employee_service: IEmployeeService,
+    ):
         self._repo = task_repository
         self._event_bus = event_bus
+        self._employee_service = employee_service
 
     async def __call__(self, cmd: AssignTask) -> None:
+        assignee = await self._employee_service.get_employee(cmd.assignee_id)
+        if not assignee:
+            raise ValueError(f"Assignee {cmd.assignee_id} not found")
         task = await self._repo.get(cmd.task_id)
         if task is None:
             raise ValueError(f"Task {cmd.task_id} not found")
