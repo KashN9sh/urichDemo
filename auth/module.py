@@ -47,10 +47,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if any(path.startswith(p) for p in PUBLIC_PREFIXES):
             return await call_next(request)
 
-        auth = request.headers.get("Authorization")
-        token = None
-        if auth and auth.startswith("Bearer "):
-            token = auth[7:].strip()
+        auth = request.headers.get("Authorization") or ""
+        token = auth.strip()
+        while token and token.lower().startswith("bearer "):
+            token = token[7:].strip()
         if not token:
             return JSONResponse(
                 status_code=401,
