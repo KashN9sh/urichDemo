@@ -58,6 +58,17 @@ services:
       employees:
         condition: service_started
 
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - auth
+      - employees
+      - tasks
+
   postgres:
     image: postgres:16-alpine
     environment:

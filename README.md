@@ -8,11 +8,12 @@
 docker compose up --build
 ```
 
+- **Приложение (фронт + API):** http://localhost:8080 — вход, регистрация, сотрудники, задачи. Единая точка входа через Nginx (прокси к сервисам).
 - **Auth:** http://localhost:8001/docs — логин, регистрация, выдача JWT  
 - **Employees:** http://localhost:8002/docs — сотрудники  
 - **Tasks:** http://localhost:8003/docs — задачи  
 
-Получить токен: **POST /auth/login** на 8001 → скопировать `token` → в Swagger на 8002 и 8003 нажать **Authorize** и вставить токен.
+В браузере откройте http://localhost:8080 — зарегистрируйтесь или войдите, после этого доступны разделы «Сотрудники» и «Задачи».
 
 ## Локально (три терминала)
 
@@ -37,6 +38,7 @@ PostgreSQL должен быть запущен (например `docker run -p
 ## Структура
 
 ```
+frontend/           # SPA (Vite + React + TypeScript), сборка в Docker, раздача через Nginx в сервисе web
 services/
   shared/           # общее
     database/       # БД, создание таблиц
