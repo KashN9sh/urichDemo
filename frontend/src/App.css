@@ -49,6 +49,35 @@
   color: var(--primary);
 }
 
+.sidebar-api {
+  padding: 1rem 1.25rem 0;
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.sidebar-api-title {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.5rem;
+}
+
+.sidebar-api-link {
+  display: block;
+  font-size: 0.8125rem;
+  color: var(--primary);
+  text-decoration: none;
+  padding: 0.25rem 0;
+}
+
+.sidebar-api-link:hover {
+  text-decoration: underline;
+  color: var(--primary-hover);
+}
+
 .sidebar-footer {
   margin-top: auto;
   padding: 1rem 1.25rem 0;
