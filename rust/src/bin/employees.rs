@@ -1,8 +1,9 @@
 //! Точка входа сервиса Employees. DI: Db в контейнере (как services/employees).
+//! Запуск: host/port из env (HOST, PORT) или из --host/--port.
 
 use urich_demo_rust::employees;
 use urich_demo_rust::shared;
-use urich_rs::{Application, RpcModule};
+use urich_rs::{host_port_from_env_and_args, Application, RpcModule};
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let db = shared::Db::open()?;
@@ -16,8 +17,9 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .methods(&["get_employee"]);
     app.register(&mut rpc)?;
 
-    println!("Employees: http://127.0.0.1:8002");
+    let (host, port) = host_port_from_env_and_args("127.0.0.1", 8002);
+    println!("Employees: http://{}:{}", host, port);
     println!("  POST /employees/commands/create_employee  GET /employees/queries/get_employee  list_employees");
     println!("  RPC /rpc  method get_employee");
-    app.run("127.0.0.1", 8002, "Employees Service", "0.1.0")
+    app.run_from_env("127.0.0.1", 8002, "Employees Service", "0.1.0")
 }

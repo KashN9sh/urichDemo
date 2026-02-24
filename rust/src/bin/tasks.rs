@@ -5,7 +5,7 @@ use std::env;
 use std::sync::Arc;
 use urich_demo_rust::shared;
 use urich_demo_rust::tasks;
-use urich_rs::{Application, RpcClient, StaticDiscovery};
+use urich_rs::{host_port_from_env_and_args, Application, RpcClient, StaticDiscovery};
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let employees_url = env::var("EMPLOYEES_SERVICE_URL").unwrap_or_else(|_| "http://127.0.0.1:8002".to_string());
@@ -26,8 +26,9 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut tasks_module = tasks::tasks_module();
     app.register(&mut tasks_module)?;
 
-    println!("Tasks: http://127.0.0.1:8003  (EMPLOYEES_SERVICE_URL={})", employees_url);
+    let (host, port) = host_port_from_env_and_args("127.0.0.1", 8003);
+    println!("Tasks: http://{}:{}  (EMPLOYEES_SERVICE_URL={})", host, port, employees_url);
     println!("  POST /tasks/commands/create_task  assign_task  complete_task");
     println!("  GET  /tasks/queries/get_task  list_tasks_by_employee");
-    app.run("127.0.0.1", 8003, "Tasks Service", "0.1.0")
+    app.run_from_env("127.0.0.1", 8003, "Tasks Service", "0.1.0")
 }

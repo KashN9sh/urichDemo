@@ -37,6 +37,7 @@ pub fn jwt_validation_middleware(
             return Box::pin(std::future::ready(Some(CoreResponse {
                 status_code: 401,
                 body,
+                content_type: None,
             })));
         }
         Box::pin(std::future::ready(None))
@@ -68,6 +69,7 @@ pub fn require_demo_key(
         Box::pin(std::future::ready(Some(CoreResponse {
             status_code: 401,
             body,
+            content_type: None,
         })))
     }
 }
