@@ -26,3 +26,6 @@ app.openapi(
     },
     global_security=[{"BearerAuth": []}],
 )
+
+if __name__ == "__main__":
+    app.run()

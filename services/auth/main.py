@@ -20,3 +20,7 @@ app.openapi(
     },
     global_security=[{"BearerAuth": []}],
 )
+
+if __name__ == "__main__":
+    # Наш ядерный ASGI (как в Rust): host/port из env HOST, PORT или --host, --port
+    app.run()
