@@ -1,10 +1,9 @@
-"""Database as a module: engine and session factory in container, tables on first request."""
+"""Database as a module: engine and session factory in container, tables at startup (new urich, no Starlette)."""
 import asyncio
 import os
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine, async_sessionmaker
-from starlette.middleware.base import BaseHTTPMiddleware
 
 from urich.core.app import Application
 from urich.core.module import Module
@@ -27,29 +26,13 @@ class SessionFactory:
         return self._maker()
 
 
-_tables_created = False
-_tables_lock = asyncio.Lock()
+async def _create_tables(engine: AsyncEngine) -> None:
+    from services.auth.models import UserModel  # noqa: F401
+    from services.employees.models import EmployeeModel  # noqa: F401
+    from services.tasks.models import TaskModel  # noqa: F401
 
-
-class EnsureTablesMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app: Any, app_ref: Application | None = None) -> None:
-        super().__init__(app)
-        self._app_ref = app_ref
-
-    async def dispatch(self, request: Any, call_next: Any) -> Any:
-        global _tables_created
-        if not _tables_created and self._app_ref is not None:
-            async with _tables_lock:
-                if not _tables_created:
-                    engine = self._app_ref.container.resolve(AsyncEngine)
-                    from services.auth.models import UserModel  # noqa: F401
-                    from services.employees.models import EmployeeModel  # noqa: F401
-                    from services.tasks.models import TaskModel  # noqa: F401
-
-                    async with engine.begin() as conn:
-                        await conn.run_sync(Base.metadata.create_all)
-                    _tables_created = True
-        return await call_next(request)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
 
 class DatabaseModule(Module):
@@ -63,4 +46,4 @@ class DatabaseModule(Module):
         )
         app.container.register_instance(AsyncEngine, engine)
         app.container.register_instance(SessionFactory, SessionFactory(session_factory))
-        app.starlette.add_middleware(EnsureTablesMiddleware, app_ref=app)
+        asyncio.run(_create_tables(engine))

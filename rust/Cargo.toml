@@ -1,0 +1,27 @@
+[package]
+name = "urich-demo-rust"
+version = "0.1.0"
+edition = "2021"
+description = "Urich demo (Rust): структура как services/ — auth, employees, tasks, shared"
+
+[[bin]]
+name = "auth"
+path = "src/bin/auth.rs"
+
+[[bin]]
+name = "employees"
+path = "src/bin/employees.rs"
+
+[[bin]]
+name = "tasks"
+path = "src/bin/tasks.rs"
+
+[dependencies]
+urich-rs = { path = "../../urich/urich-rs" }
+async-trait = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros"] }
+uuid = { version = "1", features = ["v4"] }
+reqwest = { version = "0.12", features = ["json"] }
+rusqlite = { version = "0.32", features = ["bundled"] }

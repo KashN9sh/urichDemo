@@ -39,16 +39,14 @@ PostgreSQL должен быть запущен (например `docker run -p
 
 ```
 frontend/           # SPA (Vite + React + TypeScript), сборка в Docker, раздача через Nginx в сервисе web
-services/
-  shared/           # общее
-    database/       # БД, создание таблиц
-    jwt_middleware.py
-  auth/             # логин, регистрация, JWT
-    main.py
-  employees/        # команды/запросы по сотрудникам, RPC-сервер для Tasks
-    main.py
-  tasks/            # команды/запросы по задачам, вызов Employees по RPC
-    main.py
+python/             # Минимальный демо на urich (Python): один контекст tasks, команды/запросы
+rust/               # Минимальный демо на urich-rs (Rust): тот же контекст tasks
+services/           # Полный демо на новом urich (core-only, без Starlette)
+  shared/
+    database/       # БД, создание таблиц при старте (без middleware)
+  auth/             # логин, регистрация, выдача JWT (маршруты через add_route)
+  employees/        # команды/запросы, RPC-сервер для Tasks
+  tasks/            # команды/запросы, RPC-клиент к Employees
 ```
 
 Как сервисы обмениваются данными (RPC, события) — [services/COMMUNICATION.md](services/COMMUNICATION.md).

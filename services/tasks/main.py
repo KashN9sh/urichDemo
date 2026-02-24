@@ -1,10 +1,10 @@
-"""Точка входа сервиса Tasks: команды/запросы по задачам, JWT, вызов Employees по RPC."""
+"""Точка входа сервиса Tasks: команды/запросы, JWT, вызов Employees по RPC (новый urich + middleware)."""
 from urich import Application, Config
 from urich.discovery import DiscoveryModule, static_discovery
 from urich.rpc import JsonHttpRpcTransport, RpcModule
 
 from services.shared.database.module import DatabaseModule
-from services.shared.jwt_middleware import JWTValidationMiddleware
+from services.shared.jwt_middleware import jwt_validation_middleware
 from services.tasks.infrastructure import RpcEmployeeService
 from services.tasks.module import tasks_module
 from services.tasks.ports import IEmployeeService
@@ -15,7 +15,7 @@ transport = JsonHttpRpcTransport(discovery, base_path="/rpc")
 
 app = Application()
 app.register(DatabaseModule())
-app.starlette.add_middleware(JWTValidationMiddleware)
+app.add_middleware(jwt_validation_middleware(public_path_prefixes=("/docs", "/openapi.json")))
 app.register(DiscoveryModule().adapter(discovery))
 app.register(RpcModule().client(discovery=discovery, transport=transport))
 app.container.register_class(RpcEmployeeService)
