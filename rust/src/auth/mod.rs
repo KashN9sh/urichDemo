@@ -1,53 +1,59 @@
-//! Auth: логин, регистрация (DI: Db из контейнера). Как services/auth.
+//! Auth: логин, регистрация. Handler как тип (DI из контейнера), без lock/resolve в модуле. Как services/auth.
 
 mod application;
 
-use std::sync::{Arc, Mutex};
-use urich_rs::{Application, Container, CoreError};
+use serde::Deserialize;
+use urich_rs::{Command, CommandHandler, DomainModule};
 
-/// Регистрирует маршруты /auth/login, /auth/register. Обработчики получают Db из app.container().
-pub fn register_auth(app: &mut Application) -> Result<(), CoreError> {
-    app.register_route(
-        "POST",
-        "auth/login",
-        Some(serde_json::json!({
-            "type": "object",
-            "required": ["username", "password"],
-            "properties": { "username": {"type": "string"}, "password": {"type": "string"} }
-        })),
-        Box::new(|body: serde_json::Value, container: Arc<Mutex<Container>>| {
-            Box::pin(async move {
-                let db = {
-                    let mut guard = container.lock().unwrap();
-                    guard.resolve::<crate::shared::Db>().map_err(|e| CoreError::Validation(e.to_string()))?.clone()
-                };
-                application::login_handler(body, &db).await
-            })
-        }),
-        Some("Auth"),
-    )?;
-    app.register_route(
-        "POST",
-        "auth/register",
-        Some(serde_json::json!({
-            "type": "object",
-            "required": ["username", "password"],
-            "properties": {
-                "username": {"type": "string"},
-                "password": {"type": "string"},
-                "role": {"type": "string", "default": "user"}
-            }
-        })),
-        Box::new(|body: serde_json::Value, container: Arc<Mutex<Container>>| {
-            Box::pin(async move {
-                let db = {
-                    let mut guard = container.lock().unwrap();
-                    guard.resolve::<crate::shared::Db>().map_err(|e| CoreError::Validation(e.to_string()))?.clone()
-                };
-                application::register_handler(body, &db).await
-            })
-        }),
-        Some("Auth"),
-    )?;
-    Ok(())
+use crate::shared::Db;
+
+#[derive(Debug, Deserialize, Command)]
+pub struct Login {
+    pub username: String,
+    pub password: String,
+}
+
+#[derive(Debug, Deserialize, Command)]
+pub struct Register {
+    pub username: String,
+    pub password: String,
+    #[serde(default = "default_role")]
+    pub role: String,
+}
+
+fn default_role() -> String {
+    "user".to_string()
+}
+
+/// Handler с DI: Db подставляется из контейнера при register_factory. В модуле только .command_with_handler::<Login, LoginHandler>().
+#[derive(Clone)]
+pub struct LoginHandler {
+    pub db: Db,
+}
+
+#[async_trait::async_trait]
+impl CommandHandler<Login> for LoginHandler {
+    async fn handle(&self, cmd: Login) -> Result<serde_json::Value, urich_rs::CoreError> {
+        application::login_handler(cmd, &self.db).await
+    }
+}
+
+/// Handler с DI: Db из контейнера.
+#[derive(Clone)]
+pub struct RegisterHandler {
+    pub db: Db,
+}
+
+#[async_trait::async_trait]
+impl CommandHandler<Register> for RegisterHandler {
+    async fn handle(&self, cmd: Register) -> Result<serde_json::Value, urich_rs::CoreError> {
+        application::register_handler(cmd, &self.db).await
+    }
+}
+
+/// Модуль auth: handler как тип, резолвится из контейнера (register_factory в main). Никакого lock/resolve здесь.
+pub fn auth_module() -> DomainModule {
+    DomainModule::new("auth")
+        .command_with_handler::<Login, LoginHandler>()
+        .command_with_handler::<Register, RegisterHandler>()
 }

@@ -16,6 +16,10 @@ path = "src/bin/employees.rs"
 name = "tasks"
 path = "src/bin/tasks.rs"
 
+[[bin]]
+name = "dev"
+path = "src/bin/dev.rs"
+
 [dependencies]
 urich-rs = { path = "../../urich/urich-rs" }
 async-trait = "0.1"

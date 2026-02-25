@@ -14,6 +14,7 @@ src/
   employees/        # как services/employees — команды/запросы в БД + RPC get_employee
   tasks/            # как services/tasks — БД + RPC к Employees для assignee
   bin/
+    dev.rs          # один бинарник: сервис по URICH_SERVICE (auth | employees | tasks)
     auth.rs         # сервис Auth (порт 8001)
     employees.rs    # сервис Employees (порт 8002)
     tasks.rs        # сервис Tasks (порт 8003)
@@ -26,27 +27,45 @@ src/
 - Таблицы **users**, **employees**, **tasks** создаются при первом запуске каждого бинарника.
 - Для «одной БД на все сервисы» задайте один и тот же путь в `DATABASE_URL` при запуске auth, employees и tasks.
 
-## Запуск (три терминала)
+## Запуск
 
 Репозиторий urich рядом с urichDemo (path в Cargo.toml: `../../urich/urich-rs`).
 
+**Один dev-бинарник** (сервис по env или аргументу):
+
 ```bash
 cd rust
-
-# Общая БД для всех (опционально)
 export DATABASE_URL=urich_demo.db
 
-# Сервис Auth
-cargo run --bin auth
-# → http://127.0.0.1:8001  POST /auth/login  POST /auth/register
+# Выбор сервиса: URICH_SERVICE или первый аргумент (по умолчанию auth)
+cargo run --bin dev
+# или
+URICH_SERVICE=employees cargo run --bin dev
+cargo run --bin dev -- tasks
+```
 
-# Сервис Employees (в другом терминале)
+**Отдельные бинарники** (три терминала):
+
+```bash
+cd rust
+export DATABASE_URL=urich_demo.db
+
+cargo run --bin auth
+# → http://127.0.0.1:8001  POST /auth/commands/login  POST /auth/commands/register
+
 cargo run --bin employees
 # → http://127.0.0.1:8002  commands/queries + RPC /rpc  method get_employee
 
-# Сервис Tasks (в третьем терминале; вызывает Employees по RPC)
 EMPLOYEES_SERVICE_URL=http://127.0.0.1:8002 cargo run --bin tasks
 # → http://127.0.0.1:8003  commands/queries, при create_task/assign_task — проверка assignee по RPC
+```
+
+**Горячая перезагрузка при разработке** (cargo-watch):
+
+```bash
+cargo install cargo-watch
+cargo watch -x 'run --bin dev'
+# или для конкретного сервиса: URICH_SERVICE=employees cargo watch -x 'run --bin dev'
 ```
 
 - **Auth:** пользователи в БД (users), токен в ответе login (демо: `demo-token-<id>`).

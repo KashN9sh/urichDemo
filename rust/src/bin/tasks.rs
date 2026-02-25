@@ -21,6 +21,23 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     app.with_container_mut(|c| {
         c.register_instance(db);
         c.register_instance(client);
+        c.register_factory(|c| tasks::CreateTaskHandler {
+            db: c.resolve::<shared::Db>().unwrap().clone(),
+            rpc_client: c.resolve::<Arc<RpcClient>>().unwrap().clone(),
+        });
+        c.register_factory(|c| tasks::AssignTaskHandler {
+            db: c.resolve::<shared::Db>().unwrap().clone(),
+            rpc_client: c.resolve::<Arc<RpcClient>>().unwrap().clone(),
+        });
+        c.register_factory(|c| tasks::CompleteTaskHandler {
+            db: c.resolve::<shared::Db>().unwrap().clone(),
+        });
+        c.register_factory(|c| tasks::GetTaskHandler {
+            db: c.resolve::<shared::Db>().unwrap().clone(),
+        });
+        c.register_factory(|c| tasks::ListTasksByEmployeeHandler {
+            db: c.resolve::<shared::Db>().unwrap().clone(),
+        });
     });
     app.add_middleware(shared::jwt_validation_middleware(&["docs", "openapi.json"]));
     let mut tasks_module = tasks::tasks_module();

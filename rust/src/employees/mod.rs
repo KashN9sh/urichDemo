@@ -1,10 +1,10 @@
-//! Bounded context: employees. DI: Db из контейнера (как services/employees).
+//! Bounded context: employees. Handler как тип (DI из контейнера), как services/employees.
 
 mod rpc_handler;
 
 use serde::Deserialize;
 use serde_json::Value;
-use urich_rs::{Command, ContainerError, CoreError, DomainModule, Query};
+use urich_rs::{Command, CommandHandler, DomainModule, IntoCoreError, Query, QueryHandler};
 use rusqlite::Connection;
 
 use crate::shared::Db;
@@ -26,23 +26,19 @@ pub struct ListEmployees {
     pub search: String,
 }
 
-fn container_err(e: ContainerError) -> CoreError {
-    CoreError::Validation(e.to_string())
-}
-
-fn create_employee(cmd: CreateEmployee, conn: &Connection) -> Result<Value, CoreError> {
+fn create_employee(cmd: CreateEmployee, conn: &Connection) -> Result<Value, urich_rs::CoreError> {
     conn.execute(
         "INSERT INTO employees (id, name, role) VALUES (?1, ?2, ?3)",
         rusqlite::params![cmd.employee_id, cmd.name, cmd.role],
     )
-    .map_err(|e| CoreError::Validation(e.to_string()))?;
+    .map_err(IntoCoreError::into_core_error)?;
     Ok(serde_json::json!({ "ok": true, "employee_id": cmd.employee_id }))
 }
 
-pub(crate) fn get_employee(query: GetEmployee, conn: &Connection) -> Result<Value, CoreError> {
+fn get_employee(query: GetEmployee, conn: &Connection) -> Result<Value, urich_rs::CoreError> {
     let mut stmt = conn
         .prepare("SELECT id, name, role FROM employees WHERE id = ?1")
-        .map_err(|e| CoreError::Validation(e.to_string()))?;
+        .map_err(IntoCoreError::into_core_error)?;
     let row = stmt
         .query_row([&query.employee_id], |r| {
             Ok(serde_json::json!({
@@ -55,15 +51,15 @@ pub(crate) fn get_employee(query: GetEmployee, conn: &Connection) -> Result<Valu
     match row {
         Ok(v) => Ok(v),
         Err(rusqlite::Error::QueryReturnedNoRows) => Ok(serde_json::Value::Null),
-        Err(e) => Err(CoreError::Validation(e.to_string())),
+        Err(e) => Err(urich_rs::CoreError::Validation(e.to_string())),
     }
 }
 
-fn list_employees(query: ListEmployees, conn: &Connection) -> Result<Value, CoreError> {
+fn list_employees(query: ListEmployees, conn: &Connection) -> Result<Value, urich_rs::CoreError> {
     let list: Vec<Value> = if query.search.is_empty() {
         let mut stmt = conn
             .prepare("SELECT id, name, role FROM employees")
-            .map_err(|e| CoreError::Validation(e.to_string()))?;
+            .map_err(IntoCoreError::into_core_error)?;
         let rows = stmt
             .query_map([], |r| {
                 Ok(serde_json::json!({
@@ -72,13 +68,13 @@ fn list_employees(query: ListEmployees, conn: &Connection) -> Result<Value, Core
                     "role": r.get::<_, String>(2)?,
                 }))
             })
-            .map_err(|e| CoreError::Validation(e.to_string()))?;
+            .map_err(IntoCoreError::into_core_error)?;
         rows.filter_map(|r| r.ok()).collect()
     } else {
         let pattern = format!("%{}%", query.search);
         let mut stmt = conn
             .prepare("SELECT id, name, role FROM employees WHERE LOWER(name) LIKE LOWER(?1) OR LOWER(role) LIKE LOWER(?1)")
-            .map_err(|e| CoreError::Validation(e.to_string()))?;
+            .map_err(IntoCoreError::into_core_error)?;
         let rows = stmt
             .query_map([&pattern], |r| {
                 Ok(serde_json::json!({
@@ -87,54 +83,56 @@ fn list_employees(query: ListEmployees, conn: &Connection) -> Result<Value, Core
                     "role": r.get::<_, String>(2)?,
                 }))
             })
-            .map_err(|e| CoreError::Validation(e.to_string()))?;
+            .map_err(IntoCoreError::into_core_error)?;
         rows.filter_map(|r| r.ok()).collect()
     };
     Ok(serde_json::Value::Array(list))
 }
 
-/// Модуль employees: обработчики получают Db из контейнера (DI). Доступ к БД через spawn_blocking.
-pub fn employees_module() -> DomainModule {
-    DomainModule::new("employees")
-        .command("CreateEmployee", |body, container| {
-            let container = std::sync::Arc::clone(&container);
-            Box::pin(async move {
-                let (db, cmd) = {
-                    let mut guard = container.lock().unwrap();
-                    let db = guard.resolve::<Db>().map_err(container_err)?.clone();
-                    let cmd: CreateEmployee = serde_json::from_value(body).map_err(|e| CoreError::Validation(e.to_string()))?;
-                    (db, cmd)
-                };
-                db.run(move |conn| create_employee(cmd, conn)).await
-            })
-        })
-        .query("GetEmployee", |body, container| {
-            let container = std::sync::Arc::clone(&container);
-            Box::pin(async move {
-                let (db, q) = {
-                    let mut guard = container.lock().unwrap();
-                    let db = guard.resolve::<Db>().map_err(container_err)?.clone();
-                    let q: GetEmployee = serde_json::from_value(body).map_err(|e| CoreError::Validation(e.to_string()))?;
-                    (db, q)
-                };
-                db.run(move |conn| get_employee(q, conn)).await
-            })
-        })
-        .query("ListEmployees", |body, container| {
-            let container = std::sync::Arc::clone(&container);
-            Box::pin(async move {
-                let (db, q) = {
-                    let mut guard = container.lock().unwrap();
-                    let db = guard.resolve::<Db>().map_err(container_err)?.clone();
-                    let q: ListEmployees = serde_json::from_value(body).map_err(|e| CoreError::Validation(e.to_string()))?;
-                    (db, q)
-                };
-                db.run(move |conn| list_employees(q, conn)).await
-            })
-        })
+#[derive(Clone)]
+pub struct CreateEmployeeHandler {
+    pub db: Db,
 }
 
-/// RPC handler: Db резолвится из контейнера при каждом запросе (как в Python).
+#[async_trait::async_trait]
+impl CommandHandler<CreateEmployee> for CreateEmployeeHandler {
+    async fn handle(&self, cmd: CreateEmployee) -> Result<Value, urich_rs::CoreError> {
+        self.db.run(move |conn| create_employee(cmd, conn)).await
+    }
+}
+
+#[derive(Clone)]
+pub struct GetEmployeeHandler {
+    pub db: Db,
+}
+
+#[async_trait::async_trait]
+impl QueryHandler<GetEmployee> for GetEmployeeHandler {
+    async fn handle(&self, query: GetEmployee) -> Result<Value, urich_rs::CoreError> {
+        self.db.run(move |conn| get_employee(query, conn)).await
+    }
+}
+
+#[derive(Clone)]
+pub struct ListEmployeesHandler {
+    pub db: Db,
+}
+
+#[async_trait::async_trait]
+impl QueryHandler<ListEmployees> for ListEmployeesHandler {
+    async fn handle(&self, query: ListEmployees) -> Result<Value, urich_rs::CoreError> {
+        self.db.run(move |conn| list_employees(query, conn)).await
+    }
+}
+
+/// Модуль employees: handler как тип, резолвится из контейнера. Как Python DomainModule.
+pub fn employees_module() -> DomainModule {
+    DomainModule::new("employees")
+        .command_with_handler::<CreateEmployee, CreateEmployeeHandler>()
+        .query_with_handler::<GetEmployee, GetEmployeeHandler>()
+        .query_with_handler::<ListEmployees, ListEmployeesHandler>()
+}
+
 pub fn rpc_handler() -> rpc_handler::EmployeesRpcHandler {
     rpc_handler::EmployeesRpcHandler
 }

@@ -8,7 +8,18 @@ use urich_rs::{host_port_from_env_and_args, Application, RpcModule};
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let db = shared::Db::open()?;
     let mut app = Application::new();
-    app.with_container_mut(|c| c.register_instance(db.clone()));
+    app.with_container_mut(|c| {
+        c.register_instance(db.clone());
+        c.register_factory(|c| employees::CreateEmployeeHandler {
+            db: c.resolve::<shared::Db>().unwrap().clone(),
+        });
+        c.register_factory(|c| employees::GetEmployeeHandler {
+            db: c.resolve::<shared::Db>().unwrap().clone(),
+        });
+        c.register_factory(|c| employees::ListEmployeesHandler {
+            db: c.resolve::<shared::Db>().unwrap().clone(),
+        });
+    });
     app.add_middleware(shared::jwt_validation_middleware(&["docs", "openapi.json", "rpc"]));
     let mut employees_module = employees::employees_module();
     app.register(&mut employees_module)?;
