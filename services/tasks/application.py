@@ -55,8 +55,7 @@ class CreateTaskHandler:
             raise ValueError(f"Assignee '{cmd.assignee_id}' not found")
         task = Task(id=cmd.task_id, title=cmd.title, assignee_id=cmd.assignee_id)
         await self._repo.add(task)
-        for event in task.collect_pending_events():
-            await self._event_bus.publish(event)
+        await self._event_bus.publish(TaskCreated(task_id=task.id, title=task.title, assignee_id=task.assignee_id))
         return task.id
 
 
@@ -80,8 +79,7 @@ class AssignTaskHandler:
             raise ValueError(f"Task {cmd.task_id} not found")
         task.assign(cmd.assignee_id)
         await self._repo.save(task)
-        for event in task.collect_pending_events():
-            await self._event_bus.publish(event)
+        await self._event_bus.publish(TaskAssigned(task_id=task.id, assignee_id=cmd.assignee_id))
 
 
 class CompleteTaskHandler:
@@ -95,8 +93,7 @@ class CompleteTaskHandler:
             raise ValueError(f"Task {cmd.task_id} not found")
         task.complete()
         await self._repo.save(task)
-        for event in task.collect_pending_events():
-            await self._event_bus.publish(event)
+        await self._event_bus.publish(TaskCompleted(task_id=task.id))
 
 
 class GetTaskHandler:

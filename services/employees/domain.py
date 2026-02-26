@@ -1,27 +1,21 @@
-"""Employees domain: aggregate and events."""
+"""Employees domain: aggregate and events. No Urich imports. Aggregate is just data."""
 from dataclasses import dataclass
-from urich.domain import AggregateRoot, DomainEvent
 
 
 @dataclass
-class EmployeeCreated(DomainEvent):
+class EmployeeCreated:
     employee_id: str
     name: str
     role: str
 
 
-class Employee(AggregateRoot):
-    def __init__(self, id: str, name: str, role: str):
-        super().__init__(id=id)
-        self.name = name
-        self.role = role
-        self.raise_event(EmployeeCreated(employee_id=id, name=name, role=role))
+@dataclass
+class Employee:
+    id: str
+    name: str
+    role: str
 
     @classmethod
     def from_db(cls, id: str, name: str, role: str) -> "Employee":
-        """Reconstitute from persistence without raising domain events."""
-        instance = object.__new__(cls)
-        AggregateRoot.__init__(instance, id=id)
-        instance.name = name
-        instance.role = role
-        return instance
+        """Reconstitute from persistence."""
+        return cls(id=id, name=name, role=role)

@@ -34,8 +34,9 @@ class CreateEmployeeHandler:
     async def __call__(self, cmd: CreateEmployee) -> str:
         employee = Employee(id=cmd.employee_id, name=cmd.name, role=cmd.role)
         await self._repo.add(employee)
-        for event in employee.collect_pending_events():
-            await self._event_bus.publish(event)
+        await self._event_bus.publish(
+            EmployeeCreated(employee_id=employee.id, name=employee.name, role=employee.role)
+        )
         return employee.id
 
 
