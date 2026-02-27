@@ -2,6 +2,8 @@
 
 Три приложения: **auth**, **employees**, **tasks**. Каждый — отдельный процесс, точка входа `services/<name>/main.py`.
 
+**Employees** и **tasks** собраны как bounded context на **urich.ddd.DomainModule**: слой domain (агрегат, события), application (команды/запросы, хендлеры), infrastructure (репозитории), module.py (регистрация `.aggregate()`, `.repository()`, `.command()`, `.query()`, `.on_event()`). **Auth** — кастомный модуль (логин/регистрация, JWT).
+
 ## Запуск
 
 **Docker (из корня репозитория):**

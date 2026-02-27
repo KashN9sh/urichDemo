@@ -35,6 +35,19 @@ PostgreSQL должен быть запущен (например `docker run -p
 - **Docker:** urich уже подмонтирован из `../urich` и ставится как `pip install -e /urich` при старте контейнеров. Держи репозитории рядом: `…/urich` и `…/urichDemo`.
 - **Локально (venv):** перед запуском сервисов выполни `pip install -e ../urich` — дальше демо будет использовать локальный urich.
 
+## Urich DDD/CQRS
+
+Демо построено на доработках Urich под быструю DDD/CQRS-разработку:
+
+- **DomainModule** — один модуль = один bounded context (employees, tasks). Слои: domain, application, infrastructure, module.
+- **Команды и запросы** — типы (dataclass) + хендлер (класс с DI в конструкторе или **функция** с инъекцией по типу). Маршруты: `POST /{context}/commands/{snake_name}`, `GET|POST /{context}/queries/{snake_name}`.
+- **События** — публикация в хендлере через `event_bus.publish(...)`; подписка через `.on_event(EventType, handler)`.
+- **EventBus** — `from urich.domain import EventBus`; при отсутствии EventBusModule поднимается InProcessEventDispatcher.
+
+В **employees** все хендлеры — функции (`create_employee`, `get_employee`, `list_employees`): первый аргумент — команда/запрос, остальные инжектятся из контейнера по типу. В **tasks** все хендлеры — классы с DI в конструкторе. Оба стиля можно использовать в одном приложении и даже смешивать в одном модуле (см. [Domain module](https://github.com/KashN9sh/urich/blob/main/docs/guide/domain-module.md#handlers)).
+
+Подробнее: [Urich — Getting started](https://github.com/KashN9sh/urich/blob/main/docs/getting-started.md), [Domain module](https://github.com/KashN9sh/urich/blob/main/docs/guide/domain-module.md).
+
 ## Структура
 
 ```

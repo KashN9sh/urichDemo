@@ -26,39 +26,37 @@ class ListEmployees(Query):
     search: str = ""
 
 
-class CreateEmployeeHandler:
-    def __init__(self, employee_repository: IEmployeeRepository, event_bus: EventBus):
-        self._repo = employee_repository
-        self._event_bus = event_bus
-
-    async def __call__(self, cmd: CreateEmployee) -> str:
-        employee = Employee(id=cmd.employee_id, name=cmd.name, role=cmd.role)
-        await self._repo.add(employee)
-        await self._event_bus.publish(
-            EmployeeCreated(employee_id=employee.id, name=employee.name, role=employee.role)
-        )
-        return employee.id
-
-
-class GetEmployeeHandler:
-    def __init__(self, employee_repository: IEmployeeRepository):
-        self._repo = employee_repository
-
-    async def __call__(self, query: GetEmployee):
-        employee = await self._repo.get(query.employee_id)
-        if employee is None:
-            return None
-        return {"id": employee.id, "name": employee.name, "role": employee.role}
+async def create_employee(
+    cmd: CreateEmployee,
+    employee_repository: IEmployeeRepository,
+    event_bus: EventBus,
+) -> str:
+    """Хендлер-функция: зависимости инжектятся по типу из контейнера (Urich DI)."""
+    employee = Employee(id=cmd.employee_id, name=cmd.name, role=cmd.role)
+    await employee_repository.add(employee)
+    await event_bus.publish(
+        EmployeeCreated(employee_id=employee.id, name=employee.name, role=employee.role)
+    )
+    return employee.id
 
 
-class ListEmployeesHandler:
-    def __init__(self, employee_repository: IEmployeeRepository):
-        self._repo = employee_repository
+async def get_employee(
+    query: GetEmployee,
+    employee_repository: IEmployeeRepository,
+):
+    employee = await employee_repository.get(query.employee_id)
+    if employee is None:
+        return None
+    return {"id": employee.id, "name": employee.name, "role": employee.role}
 
-    async def __call__(self, query: ListEmployees):
-        employees = await self._repo.list_all()
-        result = [{"id": e.id, "name": e.name, "role": e.role} for e in employees]
-        if query.search:
-            q = query.search.lower()
-            result = [r for r in result if q in r["name"].lower() or q in r["role"].lower()]
-        return result
+
+async def list_employees(
+    query: ListEmployees,
+    employee_repository: IEmployeeRepository,
+):
+    employees = await employee_repository.list_all()
+    result = [{"id": e.id, "name": e.name, "role": e.role} for e in employees]
+    if query.search:
+        q = query.search.lower()
+        result = [r for r in result if q in r["name"].lower() or q in r["role"].lower()]
+    return result

@@ -4,11 +4,11 @@ from urich.ddd import DomainModule
 from .domain import Employee, EmployeeCreated
 from .application import (
     CreateEmployee,
-    CreateEmployeeHandler,
+    create_employee,
     GetEmployee,
-    GetEmployeeHandler,
+    get_employee,
     ListEmployees,
-    ListEmployeesHandler,
+    list_employees,
 )
 from .infrastructure import IEmployeeRepository, EmployeeRepositoryImpl
 
@@ -22,8 +22,8 @@ employees_module = (
     DomainModule("employees")
     .aggregate(Employee)
     .repository(IEmployeeRepository, EmployeeRepositoryImpl)
-    .command(CreateEmployee, CreateEmployeeHandler)
-    .query(GetEmployee, GetEmployeeHandler)
-    .query(ListEmployees, ListEmployeesHandler)
+    .command(CreateEmployee, create_employee)
+    .query(GetEmployee, get_employee)
+    .query(ListEmployees, list_employees)
     .on_event(EmployeeCreated, on_employee_created)
 )
